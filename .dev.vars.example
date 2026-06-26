@@ -1,0 +1,16 @@
+# Copy to .dev.vars and fill in for local dev.
+# These match the secrets referenced in wrangler.toml.
+
+# Long random string used for cookie signing (≥ 32 chars).
+SESSION_SECRET=replace_with_long_random_string
+
+# Optional — override the default admin bootstrap (used by `scripts/seed.ts`).
+# ADMIN_EMAIL=phuocht.uit@gmail.com
+# ADMIN_NAME=Phuoc
+# ADMIN_GENDER=nam
+# ADMIN_PASSWORD=123456
+
+# NOTE: email is sent via Cloudflare Email Routing's send_email binding, no API
+# key needed. Local `wrangler dev` cannot actually deliver — emails fall back
+# to a console.log no-op. Verify Email Routing + Destination Addresses in the
+# Cloudflare dashboard before deploy.

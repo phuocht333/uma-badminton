@@ -1,0 +1,77 @@
+{
+  "name": "uma-badminton",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "remix vite:dev",
+    "build": "remix vite:build",
+    "deploy": "pnpm build && wrangler deploy",
+    "preview": "pnpm build && wrangler dev",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply uma_badminton_db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply uma_badminton_db --remote",
+    "db:studio": "drizzle-kit studio",
+    "db:seed:local": "tsx scripts/seed.ts --local",
+    "db:seed:remote": "tsx scripts/seed.ts --remote",
+    "db:seed-test:local": "tsx scripts/seed-test.ts --local",
+    "db:seed-test:remote": "tsx scripts/seed-test.ts --remote",
+    "db:clean-test:local": "tsx scripts/clean-test.ts --local",
+    "db:clean-test:remote": "tsx scripts/clean-test.ts --remote",
+    "lint": "eslint --ext .ts,.tsx app",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@radix-ui/react-checkbox": "^1.1.2",
+    "@radix-ui/react-dialog": "^1.1.2",
+    "@radix-ui/react-label": "^2.1.0",
+    "@radix-ui/react-slot": "^1.1.0",
+    "@radix-ui/react-toast": "^1.2.2",
+    "@remix-run/cloudflare": "^2.13.1",
+    "@remix-run/react": "^2.13.1",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
+    "drizzle-orm": "^0.36.4",
+    "html-to-image": "^1.11.11",
+    "isbot": "^4.4.0",
+    "lucide-react": "^0.460.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.5.4",
+    "ulid": "^2.3.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241218.0",
+    "@remix-run/dev": "^2.13.1",
+    "@resvg/resvg-js": "^2.6.2",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "autoprefixer": "^10.4.20",
+    "better-sqlite3": "^12.10.0",
+    "drizzle-kit": "^0.28.1",
+    "postcss": "^8.4.49",
+    "qrcode": "^1.5.4",
+    "tailwindcss": "^3.4.14",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "vite-tsconfig-paths": "^5.1.2",
+    "vitest": "^2.1.5",
+    "wrangler": "^3.95.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild",
+      "workerd"
+    ]
+  }
+}

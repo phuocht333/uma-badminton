@@ -1,0 +1,90 @@
+{
+	"version": "7",
+	"dialect": "sqlite",
+	"entries": [
+		{
+			"idx": 0,
+			"version": "6",
+			"when": 1779285161301,
+			"tag": "0000_initial",
+			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "6",
+			"when": 1779287210421,
+			"tag": "0001_audit_logs",
+			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "6",
+			"when": 1779288198801,
+			"tag": "0002_extra_slots_and_refund",
+			"breakpoints": true
+		},
+		{
+			"idx": 3,
+			"version": "6",
+			"when": 1779293328400,
+			"tag": "0003_pass_confirm_step",
+			"breakpoints": true
+		},
+		{
+			"idx": 4,
+			"version": "6",
+			"when": 1779326969314,
+			"tag": "0004_member_month_payments",
+			"breakpoints": true
+		},
+		{
+			"idx": 5,
+			"version": "6",
+			"when": 1779400000000,
+			"tag": "0005_pass_request_original_status",
+			"breakpoints": true
+		},
+		{
+			"idx": 6,
+			"version": "6",
+			"when": 1779450000000,
+			"tag": "0006_users_phone",
+			"breakpoints": true
+		},
+		{
+			"idx": 7,
+			"version": "6",
+			"when": 1779500000000,
+			"tag": "0007_month_locked_snapshot",
+			"breakpoints": true
+		},
+		{
+			"idx": 8,
+			"version": "6",
+			"when": 1779516512762,
+			"tag": "0008_auto_match_reject",
+			"breakpoints": true
+		},
+		{
+			"idx": 9,
+			"version": "6",
+			"when": 1779538270547,
+			"tag": "0009_vang_lai_payments",
+			"breakpoints": true
+		},
+		{
+			"idx": 10,
+			"version": "6",
+			"when": 1779546222738,
+			"tag": "0010_multi_slot_vang_lai",
+			"breakpoints": true
+		},
+		{
+			"idx": 11,
+			"version": "6",
+			"when": 1779590623011,
+			"tag": "0011_revert_multi_slot",
+			"breakpoints": true
+		}
+	]
+}

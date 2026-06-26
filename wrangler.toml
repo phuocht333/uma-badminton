@@ -1,0 +1,53 @@
+name = "uma-badminton"
+main = "./worker.ts"
+compatibility_date = "2025-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# ---- Static assets (served before SSR) ----
+[assets]
+directory = "./build/client"
+binding = "ASSETS"
+
+# ---- Vars (non-secret) ----
+[vars]
+APP_BASE_URL = "https://uma-badminton.phuocht-work.workers.dev"
+EMAIL_FROM_ADDRESS = "phuocht.test@gmail.com"
+EMAIL_FROM_NAME = "UMABadminton"
+TIMEZONE = "Asia/Ho_Chi_Minh"
+
+# ---- Secrets (set with: wrangler secret put NAME) ----
+# SESSION_SECRET
+# SENDGRID_API_KEY  — from https://app.sendgrid.com/settings/api_keys (Mail Send permission)
+
+# ---- D1 ----
+[[d1_databases]]
+binding = "DB"
+database_name = "uma_badminton_db"
+database_id = "73d0731b-2d1b-40c4-b1a3-21d5f2a5051c"
+migrations_dir = "migrations"
+
+# ---- KV (cron locks, rate limiting) ----
+[[kv_namespaces]]
+binding = "KV"
+id = "d183ae7f818c46419abce5a2f784ccec"
+
+# ---- R2 (QR images) ----
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "uma-badminton-qr"
+
+# ---- Cron Triggers ----
+# Daily triggers — the handler reads the configured vote-open-day and
+# vote-close-day from the DB and only dispatches on a match. This lets
+# Admin change the dates via /admin/config without redeploying.
+# UTC -> VN (UTC+7):
+#   02:00 UTC = 09:00 VN  (potential open)
+#   16:59 UTC = 23:59 VN  (potential close)
+[triggers]
+crons = [
+  "0 2 * * *",
+  "59 16 * * *"
+]
+
+[observability]
+enabled = true

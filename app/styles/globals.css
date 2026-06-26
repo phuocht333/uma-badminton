@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    border-color: theme("colors.hairline.DEFAULT");
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  html,
+  body {
+    background-color: theme("colors.canvas.DEFAULT");
+    color: theme("colors.ink.DEFAULT");
+    font-family: theme("fontFamily.sans");
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    min-height: 100svh;
+  }
+
+  /* Selection */
+  ::selection {
+    background-color: theme("colors.accent.tint");
+    color: theme("colors.accent.deep");
+  }
+
+  /* Default focus ring (accessible everywhere) */
+  :focus-visible {
+    outline: 2px solid theme("colors.accent.DEFAULT");
+    outline-offset: 2px;
+    border-radius: theme("borderRadius.sm");
+  }
+
+  /* Number inputs: hide spinners */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+}
+
+@layer components {
+  .container-mobile {
+    /* Stay edge-to-edge through phone (any orientation) AND tablet portrait —
+     * iPhone Pro Max landscape is ~926px and iPad portrait is 820–1024px, so
+     * we hold off on capping until the `lg` breakpoint (1024px = true tablet
+     * landscape / desktop). Capping earlier left ugly empty gutters on every
+     * rotated phone.
+     *
+     *   <640  phone portrait      → full-width, px-4
+     *   640–1023 landscape/tablet → full-width, px-6
+     *   ≥1024 desktop             → max-w-5xl
+     *   ≥1280 large desktop       → max-w-6xl */
+    @apply mx-auto w-full px-4 sm:px-6 lg:max-w-5xl xl:max-w-6xl;
+  }
+  .container-wide {
+    /* For dense data views (admin matrix). Same landscape-phone fix as
+     * container-mobile — only cap at desktop (lg+). */
+    @apply mx-auto w-full px-4 sm:px-6 lg:max-w-7xl;
+  }
+
+  /* Engineer-voice eyebrow used above section headers */
+  .eyebrow {
+    @apply font-mono uppercase tracking-wider text-muted;
+    font-size: theme("fontSize.label-mono[0]");
+    letter-spacing: theme("fontSize.label-mono[1].letterSpacing");
+  }
+
+  /* Italic editorial accent — use ≤1 word per page */
+  .accent-serif {
+    @apply font-serif italic text-accent-deep;
+  }
+}
+
+@keyframes progress {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(150%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN momo_link TEXT;

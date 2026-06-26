@@ -1,0 +1,1 @@
+ALTER TABLE `pass_requests` ADD `confirmed_at` integer;

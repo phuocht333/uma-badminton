@@ -1,0 +1,678 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>UMA Badminton — Danh sách popup / modal / thông báo</title>
+<style>
+  :root {
+    --ink:#0A0A0A; --body:#404040; --muted:#737373;
+    --hairline:#E5E5E5; --canvas:#FAFAF9; --card:#FFFFFF; --strong:#F5F5F4;
+    --accent:#7C3AED; --accent-deep:#5B21B6; --accent-tint:#F5F3FF;
+    --success:#10B981; --warn:#F59E0B; --error:#DC2626; --info:#3B82F6;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--canvas);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 1100px; margin: 0 auto; padding: 48px 24px 80px; }
+  h1 { font-size: 32px; font-weight: 600; letter-spacing: -0.5px; margin: 0 0 8px; }
+  h2 {
+    font-size: 22px; font-weight: 600; margin: 48px 0 16px;
+    padding: 0 0 8px; border-bottom: 1px solid var(--hairline);
+  }
+  h3 { font-size: 16px; font-weight: 600; margin: 0; }
+  .eyebrow {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--accent-deep);
+  }
+  .lead { color: var(--body); font-size: 15px; margin: 0 0 24px; }
+  .meta {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12px; color: var(--muted);
+    background: var(--strong); border-radius: 4px; padding: 2px 8px;
+  }
+  .grid { display: grid; gap: 14px; }
+  .item {
+    background: var(--card); border: 1px solid var(--hairline); border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .item-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .item-purpose { color: var(--body); margin: 4px 0 8px; }
+  .item-trigger, .item-source {
+    font-size: 13px; color: var(--muted);
+  }
+  .item-trigger b, .item-source b { color: var(--ink); font-weight: 500; }
+  .item-source code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12px; color: var(--accent-deep);
+  }
+  .tag {
+    display: inline-block; padding: 2px 8px; border-radius: 9999px;
+    font-size: 11px; font-weight: 500; letter-spacing: 0.02em;
+  }
+  .tag-dialog { background: #EEF2FF; color: #4338CA; }
+  .tag-sheet { background: #FEF3C7; color: #92400E; }
+  .tag-toast { background: var(--accent-tint); color: var(--accent-deep); }
+  .tag-confirm { background: #FEE2E2; color: #991B1B; }
+  .tag-banner { background: #DBEAFE; color: #1E40AF; }
+  .tag-inline { background: #ECFDF5; color: #047857; }
+  .tag-email { background: #FCE7F3; color: #9D174D; }
+  .toc {
+    background: var(--card); border: 1px solid var(--hairline); border-radius: 12px;
+    padding: 16px 20px; margin: 16px 0 40px;
+  }
+  .toc ul { margin: 0; padding-left: 18px; }
+  .toc li { margin: 4px 0; }
+  .toc a { color: var(--accent-deep); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .legend { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+  .copy {
+    background: var(--strong); border-radius: 6px; padding: 8px 12px;
+    font-size: 13px; color: var(--body);
+    margin: 6px 0;
+  }
+  .copy b { color: var(--ink); }
+  details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  details > div { margin-top: 6px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <p class="eyebrow">UMA Badminton</p>
+  <h1>Inventory: popup / modal / thông báo / hướng dẫn</h1>
+  <p class="lead">
+    Liệt kê toàn bộ overlay (dialog, sheet, toast), banner-thông-báo trong UI,
+    confirm form, và email gửi cho thành viên. Mục đích sử dụng + nơi xuất
+    hiện đi kèm để dễ rà soát.
+  </p>
+
+  <div class="legend">
+    <span class="tag tag-dialog">Dialog (modal)</span>
+    <span class="tag tag-sheet">Sheet (drawer)</span>
+    <span class="tag tag-toast">Toast</span>
+    <span class="tag tag-confirm">Confirm</span>
+    <span class="tag tag-banner">Banner / Card</span>
+    <span class="tag tag-inline">Inline notice</span>
+    <span class="tag tag-email">Email</span>
+  </div>
+
+  <nav class="toc">
+    <strong>Mục lục</strong>
+    <ul>
+      <li><a href="#dialogs">1. Dialog / Modal</a></li>
+      <li><a href="#sheets">2. Sheet (drawer)</a></li>
+      <li><a href="#toasts">3. Toast</a></li>
+      <li><a href="#confirms">4. Confirm dialog</a></li>
+      <li><a href="#banners">5. Banner / Card thông báo</a></li>
+      <li><a href="#inline">6. Inline notice</a></li>
+      <li><a href="#emails">7. Email tự động</a></li>
+    </ul>
+  </nav>
+
+  <!-- ==================== DIALOGS ==================== -->
+  <h2 id="dialogs">1. Dialog / Modal</h2>
+  <div class="grid">
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-dialog">Dialog</span>
+        <h3>Chuyển tháng (đóng tiền tháng cho Quỹ)</h3>
+      </div>
+      <p class="item-purpose">
+        Thành viên xác nhận đã chuyển khoản tiền sân tháng cho quỹ chung. Hiện
+        QR quỹ (desktop) hoặc nút "Thanh toán qua MoMo" (mobile + có link MoMo).
+        Sau khi xác nhận → backend ghi <code>member_month_payments</code> +
+        audit <code>payment_marked</code>.
+      </p>
+      <p class="copy"><b>Tiêu đề:</b> "Chuyển <em>200.000đ</em> cho Quỹ chung"</p>
+      <p class="copy"><b>Mô tả:</b> "Tiền tháng 06/2026"</p>
+      <p class="item-source"><b>Source:</b> <code>app/components/month-pay-cta.tsx</code></p>
+      <p class="item-trigger"><b>Xuất hiện ở:</b> /lich (CTA "Chuyển tháng" trên summary card của done month) + /trang-chu (banner <em>Sân tháng X đã đặt</em>)</p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-dialog">Dialog</span>
+        <h3>Nhận slot — chuyển tiền + xác nhận</h3>
+      </div>
+      <p class="item-purpose">
+        Thành viên claim pass-slot từ người khác. Dialog hiện QR + số tiền cần
+        chuyển cho người pass (theo giá tier + giới tính). Sau khi xác nhận →
+        seat transfer + audit <code>pass_confirmed</code>.
+      </p>
+      <p class="copy"><b>Tiêu đề:</b> "Nhận slot — chuyển tiền + xác nhận"</p>
+      <p class="copy"><b>Mô tả:</b> "Chuyển tiền theo QR bên dưới, xong bấm <em>Đã chuyển</em>."</p>
+      <p class="item-source"><b>Source:</b> <code>ClaimSlotDialog</code> trong <code>app/routes/trang-chu.tsx</code></p>
+      <p class="item-trigger"><b>Xuất hiện ở:</b> /trang-chu (mỗi row "Đang pass slot" hiện trên session card có button "Nhận")</p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-dialog">Dialog</span>
+        <h3>Đăng ký vãng lai</h3>
+      </div>
+      <p class="item-purpose">
+        Thành viên đăng ký 1 slot vãng lai cho buổi. Server check cutoff +
+        existing vote + tạo extra_slot_request + chạy tryAutoMatch.
+      </p>
+      <p class="copy"><b>Tiêu đề:</b> "Đăng ký vãng lai — T7 30-05-2026"</p>
+      <p class="copy"><b>Mô tả:</b> "Sau khi đăng ký, chờ người khác pass slot hoặc admin duyệt."</p>
+      <p class="copy"><b>Thành công:</b> "✓ Đã gửi yêu cầu — chờ Admin duyệt"</p>
+      <p class="item-source"><b>Source:</b> <code>VangLaiDialog</code> trong <code>app/routes/trang-chu.tsx</code></p>
+      <p class="item-trigger"><b>Xuất hiện ở:</b> /trang-chu (button "Đăng ký vãng lai" trên session card khi user chưa có slot)</p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-dialog">Dialog</span>
+        <h3>Duyệt N vãng lai cho buổi</h3>
+      </div>
+      <p class="item-purpose">
+        Admin duyệt tất cả vãng lai pending của 1 buổi. Hiện tổng số người
+        hiện tại / sau khi duyệt + tổng giờ sân cần. Cảnh báo nếu thiếu giờ
+        sân, mở inline form để thêm sân ngay trong dialog.
+      </p>
+      <p class="copy"><b>Tiêu đề:</b> "Duyệt 3 vãng lai — T7 30-05-2026"</p>
+      <p class="copy"><b>Mô tả:</b> "Khi duyệt, các thành viên này sẽ vào danh sách 'Vãng lai thành công'."</p>
+      <p class="item-source"><b>Source:</b> <code>ApproveVangLaiButton</code> trong <code>app/routes/trang-chu.tsx</code></p>
+      <p class="item-trigger"><b>Xuất hiện ở:</b> /trang-chu (admin thấy button "Duyệt" trên session card khi có vãng lai pending)</p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-dialog">Dialog</span>
+        <h3>Sửa sân (batch edit toàn tháng)</h3>
+      </div>
+      <p class="item-purpose">
+        Admin chỉnh tất cả court_allocation của tháng trong 1 dialog: thêm /
+        sửa giờ / xoá sân cho từng buổi. Save batch → multiple intents
+        admin-save-courts-bulk.
+      </p>
+      <p class="copy"><b>Tiêu đề:</b> "Sửa sân"</p>
+      <p class="item-source"><b>Source:</b> <code>AllCourtsEditDialog</code> trong <code>app/routes/lich.tsx</code></p>
+      <p class="item-trigger"><b>Xuất hiện ở:</b> /lich (admin + locked/voting month — button "Sửa sân" trên toolbar Bảng vote tháng)</p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-dialog">Dialog</span>
+        <h3>Xác nhận thêm sân</h3>
+      </div>
+      <p class="item-purpose">
+        Admin xem trước impact khi thêm 1 court mới cho buổi: số slot mở rộng,
+        chi phí, vãng lai đang chờ sẽ được duyệt.
+      </p>
+      <p class="copy"><b>Tiêu đề:</b> "Xác nhận thêm sân"</p>
+      <p class="item-source"><b>Source:</b> <code>app/routes/admin_.sessions.$id.tsx</code></p>
+      <p class="item-trigger"><b>Xuất hiện ở:</b> /admin/sessions/:id (admin thêm sân lẻ cho 1 buổi)</p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-dialog">Dialog</span>
+        <h3>Hoàn tiền pass slot (admin)</h3>
+      </div>
+      <p class="item-purpose">
+        Admin duyệt hoàn tiền cho 1 pass-request unclaimed sau cutoff. Vote →
+        hoan_tien, quỹ ghi nợ refund_payments.
+      </p>
+      <p class="copy"><b>Tiêu đề:</b> "Hoàn tiền pass slot"</p>
+      <p class="item-source"><b>Source:</b> <code>app/routes/admin_.sessions.$id.tsx</code></p>
+      <p class="item-trigger"><b>Xuất hiện ở:</b> /admin/sessions/:id (admin thấy danh sách pass pending → button "Hoàn tiền")</p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-dialog">Dialog</span>
+        <h3>Chi tiết thanh toán (Pass slot / Vãng lai → Quỹ / Hoàn tiền)</h3>
+      </div>
+      <p class="item-purpose">
+        Mở từ row trên /thanh-toan. Hiện QR + nút MoMo + button "Đã thanh
+        toán" cho out-going, hoặc lời nhắn chờ cho incoming. Done items hiện
+        "Đã trả lúc / Đã nhận lúc".
+      </p>
+      <p class="copy"><b>Tiêu đề ví dụ:</b> "Chuyển 60.000đ cho Phước" / "Đã nhận 70.000đ từ Linh"</p>
+      <p class="item-source"><b>Source:</b> <code>PaymentDialog</code> trong <code>app/routes/thanh-toan.tsx</code></p>
+      <p class="item-trigger"><b>Xuất hiện ở:</b> /thanh-toan (click vào row outgoing/incoming/done)</p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-dialog">Dialog</span>
+        <h3>Chi tiết admin payments (quỹ phải trả / đã trả)</h3>
+      </div>
+      <p class="item-purpose">
+        Mirror của PaymentDialog ở /thanh-toan nhưng từ góc nhìn admin: hiện
+        nghĩa vụ quỹ với từng thành viên (refund) và lịch sử đã chi.
+      </p>
+      <p class="item-source"><b>Source:</b> <code>app/routes/admin.payments.tsx</code></p>
+      <p class="item-trigger"><b>Xuất hiện ở:</b> /admin/payments</p>
+    </div>
+
+  </div>
+
+  <!-- ==================== SHEETS ==================== -->
+  <h2 id="sheets">2. Sheet (drawer)</h2>
+  <div class="grid">
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-sheet">Sheet</span>
+        <h3>Lịch sử buổi đánh</h3>
+      </div>
+      <p class="item-purpose">
+        Drawer bên phải hiện danh sách audit event của 1 buổi: ai vote / pass /
+        vãng lai / claim / approve … để truy ngược.
+      </p>
+      <p class="copy"><b>Tiêu đề:</b> "Lịch sử T7 30-05-2026"</p>
+      <p class="item-source"><b>Source:</b> <code>SessionMenu</code> trong <code>app/routes/trang-chu.tsx</code></p>
+      <p class="item-trigger"><b>Xuất hiện ở:</b> /trang-chu (button "Xem lịch sử" trên session card khi history.length > 0)</p>
+    </div>
+
+  </div>
+
+  <!-- ==================== TOASTS ==================== -->
+  <h2 id="toasts">3. Toast</h2>
+  <div class="grid">
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-toast">Toast</span>
+        <h3>Auto-match notification</h3>
+      </div>
+      <p class="item-purpose">
+        Bottom-fixed banner xuất hiện 1 lần sau khi auto-match happen. Phân biệt
+        2 phía:
+      </p>
+      <p class="copy">
+        <b>Bên pass-slotter:</b><br>
+        <em>Headline:</em> "Slot của bạn được [Vãng lai] nhận"<br>
+        <em>Body:</em> "[Vãng lai] sẽ chuyển [amount] cho bạn."<br>
+        <em>CTA:</em> "Vào Thanh toán →"
+      </p>
+      <p class="copy">
+        <b>Bên vãng lai:</b><br>
+        <em>Headline:</em> "Đã nhận pass slot của [Pass-slotter]"<br>
+        <em>Body:</em> "Chuyển [amount] cho [Pass-slotter]."<br>
+        <em>CTA:</em> "Xem QR + xác nhận →"
+      </p>
+      <p class="item-source"><b>Source:</b> <code>app/components/auto-match-toast.tsx</code></p>
+      <p class="item-trigger"><b>Xuất hiện ở:</b> /trang-chu (sau khi user trigger request-pass hoặc register-vang-lai mà auto-match thành công)</p>
+    </div>
+
+  </div>
+
+  <!-- ==================== CONFIRMS ==================== -->
+  <h2 id="confirms">4. Confirm dialog (trigger → modal)</h2>
+  <div class="grid">
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-confirm">Confirm</span>
+        <h3>Pass slot này?</h3>
+      </div>
+      <p class="item-purpose">Thành viên mở pass cho slot của mình.</p>
+      <p class="copy"><b>Mô tả:</b> "Chờ người nhận slot hoặc Admin duyệt nhé. Có thể huỷ trước đó."</p>
+      <p class="copy"><b>Confirm label:</b> "Pass slot"</p>
+      <p class="item-source"><b>Source:</b> <code>app/routes/trang-chu.tsx</code> (SessionActions)</p>
+      <p class="item-trigger"><b>Xuất hiện ở:</b> /trang-chu (button "Pass slot" trên session card khi user có vote thang/vang_lai)</p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-confirm">Confirm</span>
+        <h3>Huỷ pass slot?</h3>
+      </div>
+      <p class="item-purpose">Thành viên huỷ pass-request trước khi có người nhận.</p>
+      <p class="copy"><b>Mô tả:</b> "Slot trở về như cũ, bạn vẫn đi đánh buổi này."</p>
+      <p class="copy"><b>Confirm label:</b> "Huỷ pass"</p>
+      <p class="item-source"><b>Source:</b> <code>app/routes/trang-chu.tsx</code></p>
+      <p class="item-trigger"><b>Xuất hiện ở:</b> /trang-chu (button "Huỷ" trên row đang pass slot)</p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-confirm">Confirm</span>
+        <h3>Duyệt hoàn tiền?</h3>
+      </div>
+      <p class="item-purpose">Admin duyệt hoàn tiền cho pass-request unclaimed.</p>
+      <p class="copy"><b>Mô tả:</b> "Quỹ sẽ trả lại [amount] cho [ownerName]. Sau khi duyệt, khoản này hiện trong 'Quỹ cần trả'."</p>
+      <p class="copy"><b>Confirm label:</b> "Duyệt hoàn tiền"</p>
+      <p class="item-source"><b>Source:</b> <code>app/routes/trang-chu.tsx</code> (ApproveRefundButton)</p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-confirm">Confirm</span>
+        <h3>Khoá vote?</h3>
+      </div>
+      <p class="item-purpose">Admin đóng vote tháng, tự gen sân.</p>
+      <p class="copy"><b>Mô tả:</b> "Đóng vote, tự gen sân. Member không vote thêm được. Có thể mở lại sau."</p>
+      <p class="copy"><b>Confirm label:</b> "Khoá vote"</p>
+      <p class="item-source"><b>Source:</b> <code>app/routes/lich.tsx</code> (MonthVoteToolbar)</p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-confirm">Confirm</span>
+        <h3>Mở lại vote?</h3>
+      </div>
+      <p class="item-purpose">Admin re-open voting cho tháng đã khoá.</p>
+      <p class="copy"><b>Mô tả:</b> "Mở lại vote để mọi người tiếp tục vote."</p>
+      <p class="copy"><b>Confirm label:</b> "Mở lại vote"</p>
+      <p class="item-source"><b>Source:</b> <code>app/routes/lich.tsx</code></p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-confirm">Confirm</span>
+        <h3>Chốt đã đặt sân</h3>
+      </div>
+      <p class="item-purpose">Admin chuyển month sang status "done" — không reversible. Pass-slot + vãng lai mở. Tự mở vote tháng kế.</p>
+      <p class="copy"><b>Mô tả:</b> "Khoá vote và thông tin sân vĩnh viễn. Mở pass slot + đăng ký vãng lai cho member. Tự mở vote tháng kế. KHÔNG reverse được."</p>
+      <p class="copy"><b>Confirm label:</b> "Chốt đã đặt sân"</p>
+      <p class="item-source"><b>Source:</b> <code>app/routes/lich.tsx</code></p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-confirm">Confirm</span>
+        <h3>Huỷ sân</h3>
+      </div>
+      <p class="item-purpose">Admin xoá 1 court_allocation. Pass-slot pending của buổi auto-refund.</p>
+      <p class="copy"><b>Mô tả:</b> "Huỷ sân C3 (08:00–10:00). Người đang chờ pass slot trên buổi này sẽ tự được hoàn tiền."</p>
+      <p class="copy"><b>Confirm label:</b> "Huỷ sân"</p>
+      <p class="item-source"><b>Source:</b> <code>app/routes/admin_.sessions.$id.tsx</code></p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-confirm">Confirm</span>
+        <h3>Từ chối vãng lai</h3>
+      </div>
+      <p class="item-purpose">Admin từ chối extra_slot_request. Member nhận email báo failed.</p>
+      <p class="copy"><b>Mô tả:</b> "Từ chối đăng ký vãng lai của [member]. Người này sẽ nhận email báo không thành công."</p>
+      <p class="copy"><b>Confirm label:</b> "Từ chối"</p>
+      <p class="item-source"><b>Source:</b> <code>app/routes/admin_.sessions.$id.tsx</code></p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-confirm">Confirm</span>
+        <h3>Từ chối pass slot</h3>
+      </div>
+      <p class="item-purpose">Admin reject pass-request unclaimed. Vote về trạng thái cũ (vẫn tính tiền).</p>
+      <p class="copy"><b>Mô tả:</b> "Từ chối yêu cầu pass của [member]. Vote quay về trạng thái cũ — vẫn tính tiền như đã đánh."</p>
+      <p class="copy"><b>Confirm label:</b> "Từ chối"</p>
+      <p class="item-source"><b>Source:</b> <code>app/routes/admin_.sessions.$id.tsx</code></p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-confirm">Confirm</span>
+        <h3>Đổi role thành viên</h3>
+      </div>
+      <p class="item-purpose">Admin promote/demote thành viên admin ↔ member.</p>
+      <p class="copy"><b>Mô tả:</b> "Chuyển [member] thành [Admin / Thành viên]?"</p>
+      <p class="copy"><b>Confirm label:</b> "Đổi role"</p>
+      <p class="item-source"><b>Source:</b> <code>app/routes/admin.members.tsx</code></p>
+    </div>
+
+  </div>
+
+  <!-- ==================== BANNERS ==================== -->
+  <h2 id="banners">5. Banner / Card thông báo</h2>
+  <div class="grid">
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-banner">Banner</span>
+        <h3>Sân tháng đã đặt — cần thanh toán</h3>
+      </div>
+      <p class="item-purpose">
+        Nhắc thành viên đóng tiền tháng cho các done month chưa thanh toán. 1
+        row mỗi tháng (oldest first). Click "Chuyển tháng" → mở MonthPayCta
+        dialog. Sau khi pay → revalidate → row biến mất.
+      </p>
+      <p class="copy">
+        <b>Text:</b> "Sân tháng <em>06/2026</em> đã đặt, bạn cần thanh toán: <em>200.000đ</em>" + Button "Chuyển tháng"
+      </p>
+      <p class="item-source"><b>Source:</b> <code>PendingMonthPaymentsBanner</code> trong <code>app/routes/trang-chu.tsx</code></p>
+      <p class="item-trigger"><b>Xuất hiện ở:</b> /trang-chu (trên cùng, khi user có done month nợ chưa đóng)</p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-banner">Banner</span>
+        <h3>Đang mở vote</h3>
+      </div>
+      <p class="item-purpose">
+        Báo thành viên tháng kế đang mở vote. Link vào /lich anchor đúng tháng.
+      </p>
+      <p class="copy">
+        <b>Eyebrow:</b> "Đang mở vote"<br>
+        <b>Body:</b> "06/2026"<br>
+        <b>CTA:</b> "Vote ngay →" (lần đầu) / "Đổi vote →" (đã vote ≥1)
+      </p>
+      <p class="item-source"><b>Source:</b> <code>VoteOpenCard</code> trong <code>app/routes/trang-chu.tsx</code></p>
+      <p class="item-trigger"><b>Xuất hiện ở:</b> /trang-chu (khi tháng next-calendar đang ở status voting)</p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-banner">Banner</span>
+        <h3>Thanh toán đang chờ (outstanding / incoming)</h3>
+      </div>
+      <p class="item-purpose">
+        Banner tổng số tiền user còn nợ (outgoing) và tiền chờ nhận (incoming)
+        từ pass-slot / vãng lai → quỹ / refund. Link đến /thanh-toan.
+      </p>
+      <p class="item-source"><b>Source:</b> <code>OutstandingPaymentsCard</code> trong <code>app/routes/trang-chu.tsx</code></p>
+      <p class="item-trigger"><b>Xuất hiện ở:</b> /trang-chu (khi outstandingCount > 0 hoặc incomingCount > 0)</p>
+    </div>
+
+  </div>
+
+  <!-- ==================== INLINE NOTICES ==================== -->
+  <h2 id="inline">6. Inline notice (text trong page)</h2>
+  <div class="grid">
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-inline">Inline</span>
+        <h3>"✓ Đã chuyển" — badge sau khi đóng tiền tháng</h3>
+      </div>
+      <p class="item-purpose">
+        Badge xanh nhỏ thay button "Chuyển tháng" sau khi user đã mark paid.
+      </p>
+      <p class="item-source"><b>Source:</b> <code>app/components/month-pay-cta.tsx</code></p>
+      <p class="item-trigger"><b>Xuất hiện ở:</b> /lich (summary card của done month đã đóng tiền)</p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-inline">Inline</span>
+        <h3>Tích ✓ trong bảng vote tháng</h3>
+      </div>
+      <p class="item-purpose">
+        Hiện ✓ xanh trước số tiền của member đã đóng. Footer "Tổng thu" thêm
+        <code>(paidTotal)</code>. Note dưới bảng: "✓ là đã chuyển".
+      </p>
+      <p class="item-source"><b>Source:</b> <code>app/components/month-matrix.tsx</code></p>
+      <p class="item-trigger"><b>Xuất hiện ở:</b> /lich (Bảng vote tháng cho done month)</p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-inline">Inline</span>
+        <h3>"— chưa đủ —" / "Chưa đủ N vote"</h3>
+      </div>
+      <p class="item-purpose">
+        Cảnh báo đỏ ở header cột của buổi: <em>"— chưa đủ —"</em> khi
+        locked/done mà không có court_allocation; <em>"Chưa đủ N vote"</em>
+        khi voteCount &lt; min.
+      </p>
+      <p class="item-source"><b>Source:</b> <code>app/components/month-matrix.tsx</code></p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-inline">Inline</span>
+        <h3>"Tuần này" pill trên session card</h3>
+      </div>
+      <p class="item-purpose">
+        Pill nhỏ tô accent-tint hiện cạnh ngày khi session là T7/CN tuần này.
+      </p>
+      <p class="item-source"><b>Source:</b> <code>app/routes/trang-chu.tsx</code> (Card render)</p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-inline">Inline</span>
+        <h3>Error / success text từ fetcher</h3>
+      </div>
+      <p class="item-purpose">
+        Dòng đỏ <code>text-semantic-error</code> hiện dưới form / dialog khi
+        action trả error (vd "Đã qua hạn đăng ký pass…", "Slot đã có người
+        nhận khác.", "Bạn đang chờ pass slot — không thể đăng ký vãng lai cùng
+        buổi."). Dòng xanh khi success.
+      </p>
+      <p class="item-source"><b>Source:</b> Rải khắp <code>app/routes/*.tsx</code> + dialogs</p>
+    </div>
+
+  </div>
+
+  <!-- ==================== EMAILS ==================== -->
+  <h2 id="emails">7. Email tự động</h2>
+  <div class="grid">
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-email">Email</span>
+        <h3>Welcome + đặt mật khẩu</h3>
+      </div>
+      <p class="item-purpose">Admin tạo member mới → email mời đặt mật khẩu lần đầu.</p>
+      <p class="copy"><b>Subject:</b> "Đặt mật khẩu tài khoản UMABadminton"</p>
+      <p class="item-source"><b>Source:</b> <code>sendWelcomeWithSetPassword</code> trong <code>app/lib/email.server.ts</code></p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-email">Email</span>
+        <h3>Đặt lại mật khẩu</h3>
+      </div>
+      <p class="item-purpose">Member quên mật khẩu → request reset → email link.</p>
+      <p class="copy"><b>Subject:</b> "Đặt lại mật khẩu UMABadminton"</p>
+      <p class="item-source"><b>Source:</b> <code>sendPasswordResetEmail</code></p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-email">Email</span>
+        <h3>Mở vote tháng</h3>
+      </div>
+      <p class="item-purpose">Cron mở vote tháng kế → email mời tất cả thành viên active vote.</p>
+      <p class="copy"><b>Subject:</b> "[Uma] Mở vote tháng 06/2026"</p>
+      <p class="item-source"><b>Source:</b> <code>sendVoteOpenEmail</code></p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-email">Email</span>
+        <h3>Đã match slot — gửi vãng lai</h3>
+      </div>
+      <p class="item-purpose">Auto-match → gửi cho vãng lai: bạn đã nhận pass slot, chuyển X cho ai + QR.</p>
+      <p class="copy"><b>Subject:</b> "[Uma] Đã match slot T7 30-05-2026"</p>
+      <p class="item-source"><b>Source:</b> <code>sendAutoMatchVangLaiEmail</code></p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-email">Email</span>
+        <h3>Đã match pass slot — gửi pass-slotter</h3>
+      </div>
+      <p class="item-purpose">Auto-match → gửi cho pass-slotter: slot của bạn đã có người nhận, X sẽ chuyển cho bạn.</p>
+      <p class="copy"><b>Subject:</b> "[Uma] Đã match pass slot T7 30-05-2026"</p>
+      <p class="item-source"><b>Source:</b> <code>sendAutoMatchPassSlotterEmail</code></p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-email">Email</span>
+        <h3>Đã duyệt vãng lai</h3>
+      </div>
+      <p class="item-purpose">Admin duyệt vãng lai (manual) → email báo member + giá tiền + QR quỹ.</p>
+      <p class="copy"><b>Subject:</b> "[Uma] Đã duyệt vãng lai T7 30-05-2026"</p>
+      <p class="item-source"><b>Source:</b> <code>sendVangLaiApprovedEmail</code></p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-email">Email</span>
+        <h3>Vãng lai không thành công</h3>
+      </div>
+      <p class="item-purpose">Admin reject vãng lai → email báo member.</p>
+      <p class="copy"><b>Subject:</b> "[Uma] Vãng lai không thành công — T7 30-05-2026"</p>
+      <p class="item-source"><b>Source:</b> <code>sendVangLaiRejectedEmail</code></p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-email">Email</span>
+        <h3>Hoàn tiền pass slot</h3>
+      </div>
+      <p class="item-purpose">Admin duyệt refund → email báo pass-slotter sẽ nhận tiền hoàn lại từ quỹ.</p>
+      <p class="copy"><b>Subject:</b> "[Uma] Hoàn tiền pass slot T7 30-05-2026"</p>
+      <p class="item-source"><b>Source:</b> <code>sendPassSlotRefundedEmail</code></p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-email">Email</span>
+        <h3>Pass slot không thành công</h3>
+      </div>
+      <p class="item-purpose">Admin reject pass-request (vẫn tính tiền) → email báo pass-slotter.</p>
+      <p class="copy"><b>Subject:</b> "[Uma] Pass slot không thành công — T7 30-05-2026"</p>
+      <p class="item-source"><b>Source:</b> <code>sendPassSlotRejectedEmail</code></p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-email">Email</span>
+        <h3>Digest cutoff cho admin</h3>
+      </div>
+      <p class="item-purpose">Cron daily → email admin tổng hợp các buổi đã qua cutoff cần xử lý queue.</p>
+      <p class="copy"><b>Subject:</b> "[Uma] 3 buổi chờ duyệt (cutoff)"</p>
+      <p class="item-source"><b>Source:</b> <code>sendAdminCutoffDigestEmail</code></p>
+    </div>
+
+    <div class="item">
+      <div class="item-head">
+        <span class="tag tag-email">Email</span>
+        <h3>Kết quả vote tháng (post-close summary)</h3>
+      </div>
+      <p class="item-purpose">Sau khi tháng locked → email gửi từng member kèm tổng buổi tham gia + tiền dự kiến + QR quỹ.</p>
+      <p class="copy"><b>Subject:</b> "[Uma] Kết quả vote tháng 06/2026"</p>
+      <p class="item-source"><b>Source:</b> <code>sendVoteClosedSummaryEmail</code></p>
+    </div>
+
+  </div>
+
+  <hr style="margin: 56px 0 24px; border:0; border-top:1px solid var(--hairline);">
+  <p class="item-trigger">
+    File generated by Claude Code. Dùng để rà soát copy / trigger / mục đích.
+    Để cập nhật, đọc thẳng các file source được link và regen.
+  </p>
+
+</div>
+</body>
+</html>

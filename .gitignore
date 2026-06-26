@@ -1,0 +1,16 @@
+node_modules
+.DS_Store
+.env
+.env.local
+.dev.vars
+.wrangler
+.cache
+build
+dist
+*.log
+.vscode
+.idea
+coverage
+.vitest-cache
+.cloudflare
+.eslintcache
