@@ -122,6 +122,30 @@ export async function sendWelcomeWithSetPassword(
   await sendEmail(env, { to: member.email, subject: "Đặt mật khẩu tài khoản UMABadminton", html });
 }
 
+/**
+ * Sent when an Admin creates the account *and* sets the initial password
+ * themselves. Deliberately does NOT contain the password — the Admin hands it
+ * over out-of-band (Zalo). No set-password link either: one already exists via
+ * "Quên mật khẩu" and mailing a live reset link would undercut the password
+ * the Admin just set.
+ */
+export async function sendWelcomeWithAdminPassword(
+  env: EmailEnv,
+  member: MemberInfo,
+): Promise<void> {
+  const url = `${env.APP_BASE_URL}/login`;
+  const html = wrap(
+    "Chào mừng bạn đến với UMABadminton",
+    `<p>Xin chào ${escape(member.name)},</p>
+     <p>Tài khoản của bạn đã được tạo với email <strong>${escape(member.email)}</strong>. Admin sẽ gửi mật khẩu cho bạn riêng.</p>
+     <p style="margin:24px 0">
+       <a href="${url}" style="display:inline-block;background:#7C3AED;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px">Đăng nhập</a>
+     </p>
+     <p style="font-size:13px;color:#737373">Sau khi đăng nhập, bạn nên đổi mật khẩu trong trang Cá nhân.</p>`,
+  );
+  await sendEmail(env, { to: member.email, subject: "Tài khoản UMABadminton đã sẵn sàng", html });
+}
+
 export async function sendPasswordResetEmail(env: EmailEnv, member: MemberInfo): Promise<void> {
   const token = await createPasswordResetToken(env, member.id);
   const url = `${env.APP_BASE_URL}/set-password?token=${encodeURIComponent(token)}`;

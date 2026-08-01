@@ -1,5 +1,6 @@
 import { json, redirect, type ActionFunctionArgs, type LoaderFunctionArgs } from "@remix-run/cloudflare";
 import { Form, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
+import { useState } from "react";
 import { eq } from "drizzle-orm";
 import { ulid } from "ulid";
 import { z } from "zod";
@@ -10,16 +11,42 @@ import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { getDb, schema } from "~/db/client";
 import { requireAdmin } from "~/lib/auth.server";
+import { hashPassword } from "~/lib/crypto.server";
 import { getEnv } from "~/lib/env.server";
-import { sendWelcomeWithSetPassword } from "~/lib/email.server";
+import { sendWelcomeWithAdminPassword, sendWelcomeWithSetPassword } from "~/lib/email.server";
 
-const addSchema = z.object({
-  email: z.string().email("Email không hợp lệ"),
-  name: z.string().min(1, "Tên không được trống"),
-  phone: z.string().optional(),
-  gender: z.enum(["nam", "nu"]),
-  role: z.enum(["admin", "member"]).default("member"),
-});
+const addSchema = z
+  .object({
+    email: z.string().email("Email không hợp lệ"),
+    name: z.string().min(1, "Tên không được trống"),
+    phone: z.string().optional(),
+    gender: z.enum(["nam", "nu"]),
+    role: z.enum(["admin", "member"]).default("member"),
+    // Optional: Admin đặt mật khẩu luôn. Bỏ trống -> gửi link đặt mật khẩu.
+    // Không trim — khoảng trắng là một phần hợp lệ của mật khẩu.
+    password: z.string().optional(),
+    confirmPassword: z.string().optional(),
+  })
+  .superRefine((d, ctx) => {
+    const pw = d.password ?? "";
+    const confirm = d.confirmPassword ?? "";
+    if (pw === "" && confirm === "") return;
+    if (pw.length < 8) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["password"],
+        message: "Mật khẩu tối thiểu 8 ký tự",
+      });
+      return;
+    }
+    if (pw !== confirm) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["confirmPassword"],
+        message: "Mật khẩu xác nhận không khớp",
+      });
+    }
+  });
 
 const PHONE_RE = /^[0-9+\-\s().]{6,20}$/;
 
@@ -27,7 +54,22 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   await requireAdmin(request, context);
   const env = getEnv(context);
   const db = getDb(env.DB);
-  const users = await db.query.users.findMany({ orderBy: (u, { asc }) => [asc(u.createdAt)] });
+  // Projection, not `findMany()` — the full row carries `passwordHash`, which
+  // must never reach the browser. The list only needs "đã đặt mật khẩu chưa".
+  const rows = await db.query.users.findMany({
+    columns: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      gender: true,
+      role: true,
+      isActive: true,
+      passwordHash: true,
+    },
+    orderBy: (u, { asc }) => [asc(u.createdAt)],
+  });
+  const users = rows.map(({ passwordHash, ...u }) => ({ ...u, hasPassword: passwordHash != null }));
   return json({ users });
 }
 
@@ -50,22 +92,31 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (phone && !PHONE_RE.test(phone)) {
       return json({ error: "Số điện thoại không hợp lệ" }, { status: 400 });
     }
+    const password = parsed.data.password ?? "";
+    const passwordHash = password ? await hashPassword(password) : null;
     const now = Date.now();
     const id = ulid();
+    const name = parsed.data.name.trim();
     await db.insert(schema.users).values({
       id,
       email,
-      name: parsed.data.name.trim(),
+      name,
       phone: phone || null,
       gender: parsed.data.gender,
       role: parsed.data.role,
-      passwordHash: null,
+      passwordHash,
       isActive: true,
       createdAt: now,
       updatedAt: now,
     });
     try {
-      await sendWelcomeWithSetPassword(env, { id, name: parsed.data.name.trim(), email });
+      // Mật khẩu do Admin đặt -> không gửi link đặt mật khẩu (link đó sẽ cho
+      // phép ghi đè mật khẩu vừa đặt).
+      if (passwordHash) {
+        await sendWelcomeWithAdminPassword(env, { id, name, email });
+      } else {
+        await sendWelcomeWithSetPassword(env, { id, name, email });
+      }
     } catch (e) {
       console.error("[admin/members] welcome email failed", e);
     }
@@ -137,6 +188,10 @@ export default function AdminMembers() {
   const actionData = useActionData<typeof action>();
   const nav = useNavigation();
   const submitting = nav.state === "submitting";
+  // Controlled chỉ để biết Admin có đang đặt mật khẩu hay không — đổi nhãn nút
+  // và bật `required` cho ô xác nhận.
+  const [password, setPassword] = useState("");
+  const withPassword = password.length > 0;
 
   return (
     <div className="space-y-4">
@@ -184,7 +239,38 @@ export default function AdminMembers() {
                   <option value="admin">Admin</option>
                 </select>
               </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="password">Mật khẩu (không bắt buộc)</Label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={8}
+                  placeholder="Tối thiểu 8 ký tự"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="confirmPassword">Nhập lại mật khẩu</Label>
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={8}
+                  required={withPassword}
+                  disabled={!withPassword}
+                  placeholder={withPassword ? "Nhập lại mật khẩu" : "Nhập mật khẩu trước"}
+                />
+              </div>
             </div>
+            <p className="text-xs text-muted-foreground">
+              {withPassword
+                ? "Thành viên đăng nhập bằng mật khẩu này. Nhớ gửi mật khẩu cho họ — email báo tài khoản sẵn sàng không kèm mật khẩu."
+                : "Bỏ trống mật khẩu để hệ thống gửi link tự đặt mật khẩu qua email."}
+            </p>
             {actionData && "error" in actionData && (
               <p className="text-sm text-destructive">{actionData.error}</p>
             )}
@@ -192,7 +278,11 @@ export default function AdminMembers() {
               <p className="text-sm text-primary">{actionData.ok}</p>
             )}
             <Button type="submit" disabled={submitting}>
-              {submitting ? "Đang thêm..." : "Thêm + gửi link đặt mật khẩu"}
+              {submitting
+                ? "Đang thêm..."
+                : withPassword
+                  ? "Thêm + đặt mật khẩu"
+                  : "Thêm + gửi link đặt mật khẩu"}
             </Button>
           </Form>
         </CardContent>
@@ -232,7 +322,7 @@ export default function AdminMembers() {
                       Lưu
                     </Button>
                   </Form>
-                  {!u.passwordHash && (
+                  {!u.hasPassword && (
                     <div className="mt-1 text-xs text-amber-700">Chưa đặt mật khẩu</div>
                   )}
                   {!u.isActive && (
