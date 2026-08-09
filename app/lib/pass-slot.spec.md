@@ -16,7 +16,7 @@ truth. Update both together when adding lifecycle behaviour.
 - ✅ rejects when vote is not `thang` or `vang_lai` (e.g. already `cho_pass`,
   `da_pass`, or `hoan_tien`).
 - ✅ rejects when the month is `voting` or `locked` (must be `done`).
-- ✅ rejects after cutoff-24h.
+- ✅ still allowed after the old cutoff-24h mark (no registration deadline).
 - ✅ rejects when an unclaimed pass already exists for the vote.
 - ✅ rejects when the caller has a pending vãng lai on the same session
   (cannot be both passer and vãng lai — would auto-match to self).
@@ -35,7 +35,7 @@ truth. Update both together when adding lifecycle behaviour.
 
 - ✅ rejects when caller is not the vote's owner.
 - ✅ rejects when no open `pass_request` exists (already claimed/refunded/rejected).
-- ✅ rejects after cutoff.
+- ✅ still allowed after the old cutoff-24h mark (no registration deadline).
 - ✅ deletes the `pass_request` row and writes a `pass_cancelled` audit log.
 - ✅ restores vote to `originalVoteStatus` when vote is still `cho_pass`.
 - ✅ orphan cleanup: if vote is no longer `cho_pass` (was overwritten via
@@ -48,7 +48,7 @@ truth. Update both together when adding lifecycle behaviour.
 - ✅ allows claim when caller has a prior `hoan_tien` or `da_pass` vote
   (upsert overwrites to `thang`).
 - ✅ rejects on non-`done` months.
-- ✅ rejects after cutoff.
+- ✅ still allowed after the old cutoff-24h mark (no registration deadline).
 - ✅ rejects when the `pass_request` is already admin-rejected.
 - ✅ flips original vote to `da_pass`, upserts claimer's vote to `thang`,
   sets `pass_request.claimedAt + confirmedAt`.
@@ -79,7 +79,7 @@ truth. Update both together when adding lifecycle behaviour.
 ## registerVangLai
 
 - ✅ rejects when session not found or month is not `done`.
-- ✅ rejects after cutoff.
+- ✅ still allowed after the old cutoff-24h mark (no registration deadline).
 - ✅ rejects when caller already has `thang` / `vang_lai` vote on the session.
 - ✅ rejects when caller has `cho_pass` vote (mirror of requestPass guard).
 - ✅ rejects when caller already has a pending `extra_slot_request`.
@@ -92,7 +92,7 @@ truth. Update both together when adding lifecycle behaviour.
 
 - ✅ false when caller is not the owner.
 - ✅ false when already approved / cancelled / rejected.
-- ✅ false after cutoff.
+- ✅ still allowed after the old cutoff-24h mark (owner keeps control).
 - ✅ stamps `cancelledAt` + `vang_lai_cancelled` audit.
 
 ## approveSingleRequest (admin)
@@ -129,7 +129,7 @@ truth. Update both together when adding lifecycle behaviour.
 
 - ✅ null when no pending vãng lai.
 - ✅ null when no open pass_request.
-- ✅ null after cutoff.
+- ✅ still matches after the old cutoff-24h mark.
 - ✅ skips self-match: only same-user pass-slot exists → null.
 - ✅ FIFO on vãng lai side (anchors on oldest pending vãng lai).
 - ✅ skips same-user pass-slot when picking a counterpart for a vãng lai
@@ -149,6 +149,23 @@ truth. Update both together when adding lifecycle behaviour.
 - ✅ multi-hop: preserves head `originalVoterId` when transferring a chained
   vote.
 - ✅ idempotent: calling twice yields the same `newVoteId`, no duplicate row.
+
+## Never-expiring states (B34 — no cutoff)
+
+There is no deadline anywhere, so these states persist until a human acts.
+Asserted in `pass-slot.integration.test.ts` §4.7 and
+`extra-slot.integration.test.ts`:
+
+- ✅ unclaimed pass on a session that already happened keeps `cho_pass`, and the
+  `pass_request` stays open (claimedAt / rejectedAt / confirmedAt all null).
+- ✅ that voter is still billed at the **thang** rate (`computeMemberTotals`) —
+  passing a slot nobody takes does not remove you from the bill.
+- ✅ admin duyệt hoàn tiền → `hoan_tien`, drops off the bill.
+- ✅ admin từ chối → back to `originalVoteStatus`, stays on the bill (B29).
+- ✅ pending vãng lai on a past session stays pending and creates **no** vote,
+  so it never reaches the bill.
+- ✅ admin can still duyệt (→ `vang_lai` vote) or từ chối (→ no vote) it after
+  the session date.
 
 ## End-to-end / cross-flow
 

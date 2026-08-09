@@ -25,7 +25,6 @@ import { ulid } from "ulid";
 import { getDb, schema } from "~/db/client";
 import { audit } from "./audit.server";
 import { tryAutoMatch, type AutoMatchResult } from "./auto-match.server";
-import { isAfterCutoff } from "./session-cutoff.server";
 import { transferSeatToClaimer } from "./seat-transfer.server";
 import { computeAutoMatchPayment } from "./auto-match.server";
 import { getPrices } from "./config.server";
@@ -41,7 +40,9 @@ export type IntentResult =
  * Pass-slot actions only happen in "Đã đặt sân" (DB `done`). Voting / locked
  * months pre-date the booked-courts phase and can't host pass slots yet.
  *
- * Cutoff-24h is a separate guard — checked by each caller via `isAfterCutoff`.
+ * Month status is the only time guard — there is no registration deadline (B34).
+ * An open pass stays open and claimable right up to the session; the admin sorts
+ * out whatever is left over by hand.
  */
 async function assertSessionInBookedMonth(
   d1: D1Database,
@@ -107,9 +108,6 @@ export async function requestPass(
   }
   const mutable = await assertSessionInBookedMonth(d1, vote!.playSessionId);
   if ("error" in mutable) return mutable;
-  if (await isAfterCutoff(d1, vote!.playSessionId)) {
-    return { error: "Đã qua hạn đăng ký pass (trước buổi 24h).", status: 400 };
-  }
 
   const existing = await db.query.passRequests.findFirst({
     where: and(eq(schema.passRequests.voteId, voteId), isNull(schema.passRequests.claimedAt)),
@@ -166,9 +164,6 @@ export async function cancelPass(
   const vote = await db.query.votes.findFirst({ where: eq(schema.votes.id, voteId) });
   const owned = assertVoteOwnedBy(vote, userId);
   if ("error" in owned) return owned;
-  if (await isAfterCutoff(d1, vote!.playSessionId)) {
-    return { error: "Đã qua hạn huỷ pass. Liên hệ Admin để xử lý.", status: 400 };
-  }
   const pr = await db.query.passRequests.findFirst({
     where: and(eq(schema.passRequests.voteId, voteId), isNull(schema.passRequests.claimedAt)),
   });
@@ -213,9 +208,6 @@ export async function claimAndConfirm(
 
   const mutable = await assertSessionInBookedMonth(d1, originalVote.playSessionId);
   if ("error" in mutable) return mutable;
-  if (await isAfterCutoff(d1, originalVote.playSessionId)) {
-    return { error: "Đã qua hạn nhận slot (trước buổi 24h). Liên hệ Admin.", status: 400 };
-  }
   if (reqRow.rejectedAt) return { error: "Yêu cầu pass đã bị từ chối.", status: 400 };
   const canClaim = await assertCanClaim(d1, userId, originalVote);
   if ("error" in canClaim) return canClaim;
@@ -310,7 +302,7 @@ export async function confirmPass(
   return { ok: true };
 }
 
-/* ---------------- Admin queue actions (after cutoff) ---------------- */
+/* ---------------- Admin queue actions ---------------- */
 
 /**
  * Admin approves a refund on an unmatched pass-slot. Vote flips to `hoan_tien`

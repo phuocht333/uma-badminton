@@ -98,42 +98,59 @@ Source of truth: `app/lib/month-snapshot.server.ts`.
 | Action | Đang mở vote | Đã khoá | Đã đặt sân |
 |---|---|---|---|
 | Vote thêm/bớt | ✓ | ✗ | ✗ |
-| Pass slot (cutoff) | ✗ | ✗ | ✓ |
+| Pass slot | ✗ | ✗ | ✓ |
 | Đăng ký vãng lai | ✗ | ✗ | ✓ |
 | Mark đã đóng | ✗ | ✗ | ✓ |
 | Admin add/remove court (per session) | ✓ | ✓ (update LIVE — bill chưa frozen) | ✓ (chỉ ảnh hưởng card live, không update /lich snapshot) |
 | Admin reject vãng lai / pass | n/a | n/a | ✓ |
 | Bill / matrix | n/a | live | snapshot |
 
-Vãng lai registration in "Đã đặt sân" is **auto-instant** when capacity
-isn't full (Option B) — a `vang_lai` vote is written directly, no admin
-approval. Full sessions queue into `extra_slot_requests` and wait for the
-auto-match-on-pass mechanism.
+Time-wise there is no gate at all (B34) except one display rule: `/trang-chu`
+hides sessions that already happened (`date < today`) and marks them
+`isLocked`; **today's session renders with every action live** (B35) — pass,
+huỷ pass, nhận slot, đăng ký vãng lai, admin duyệt and admin sửa sân. People
+drop out on the morning of, so that is exactly when the flow has to work. Past
+sessions are handled from `/admin/sessions/:id`, which has no date rule.
 
-## Cutoff sweep (24h before session)
+Vãng lai registration in "Đã đặt sân" always **queues** into
+`extra_slot_requests` — there is no capacity-based auto-admit. The request
+leaves the queue one of three ways: `tryAutoMatch` hands it an open pass-slot,
+an admin duyệt-s it per person, or an admin hits "Duyệt tất cả" for the
+session (B28). Adding a court does not approve anyone by itself.
 
-`app/lib/cutoff-sweep.server.ts/sweepExpiredCutoffs` runs lazily from the
-`/lich` and `/trang-chu` loaders. For every session whose cutoff has just
-passed:
+## No registration deadline (cutoff removed — B34)
 
-- Open pass → cancelled, voter's vote restored
-- Pending vãng lai → rejected
-- Claimed-not-confirmed pass → auto-confirmed (seat already transferred)
+The app used to compute a cutoff at `min(court startTime) − 24h` and, once it
+passed, cancel open passes, reject pending vãng lai and lock new registrations.
+**All of that is gone.** There is no time-based gate anywhere:
 
-Idempotent via a `cutoff_locked` audit row per session.
+- Pass slot: mở / huỷ / nhận được tới sát giờ đánh
+- Vãng lai: đăng ký / huỷ được tới sát giờ đánh
+- `tryAutoMatch` FIFO chạy bất kể còn bao lâu tới buổi
 
-## Capacity vs allocation
+The only precondition left is month status `done` ("Đã đặt sân"). Nothing
+auto-cancels, auto-rejects or auto-confirms on a timer — whatever is still
+pending is the admin's call on `/admin/sessions/:id` (duyệt hoàn tiền / từ chối
+pass, duyệt / từ chối vãng lai). The `cutoff_locked` audit kind stays in the
+enum so old log rows still render, but nothing writes it any more.
 
-Two configs that look alike but mean different things:
+## People-per-hour vs minimum turnout
 
-- `people_per_hour` (default 3) — **allocation ratio**: 3 voters justify 1h
-  of court. Used by the auto-allocation algorithm at lock time.
-- `max_people_per_court_hour` (default 6) — **capacity ceiling**: max bodies
-  per court-hour. Used to gate vãng lai admission and display "đã đủ" on
-  home cards.
+Two numbers in `/admin/config` that look alike but mean different things:
 
-Source: `app/lib/extra-slot.server.ts/computeCapacity` (pure formula, used by
-both server and home page).
+- `people_per_hour` (default 3) — **allocation ratio**: 3 voters justify 1h of
+  court. `calculateTotalHours(headCount, peoplePerHour)` in
+  `app/lib/allocate-courts.ts` turns a head count into required hours; used by
+  auto-allocation at lock time, by the "chưa đủ giờ sân" warning on `/lich`, and
+  by the admin duyệt-vãng-lai dialog ("duyệt N người nữa thì đủ giờ chưa?").
+- `min_people_per_session` (default 6) — **minimum turnout**: below this a
+  session gets no allocation at all and renders "—".
+
+There is **no** capacity ceiling config and no capacity gate on registration —
+admission is decided by auto-match + admin duyệt (B28), not by a formula. Head
+count for those decisions is `SessionView.playerCount` (distinct members holding
+a `thang` / `vang_lai` / `cho_pass` seat), from
+`app/lib/home-summary.server.ts`.
 
 ## Audit log
 

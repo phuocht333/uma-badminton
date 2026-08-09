@@ -5,7 +5,7 @@ import { describeEvent, type DescribableEvent } from "~/lib/audit-format";
  * Renders the Vietnamese audit sentence with member names bolded. Reads
  * names from the event payload (actor/subject + auto-match meta) and wraps
  * each occurrence with `<strong>`. Falls back to plain text when no names
- * apply (system-only events like "Khoá đăng ký pass / vãng lai").
+ * apply (system-only events like "Khoá đăng ký vãng lai").
  */
 export function AuditDescription({ event }: { event: DescribableEvent }) {
   const text = describeEvent(event);

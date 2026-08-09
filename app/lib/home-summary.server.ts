@@ -53,7 +53,6 @@ export interface SessionView {
   id: string;
   date: string;
   weekday: WeekdayCode;
-  voteCount: number;
   courts: Array<{ id: string; code: string; start: string; end: string }>;
   players: Array<{ name: string; isMe: boolean; status: schema.Vote["status"]; votedAt: number }>;
   /** Vãng lai requests still pending admin approval (and not auto-matched
@@ -67,16 +66,23 @@ export interface SessionView {
   }>;
   myStatus: MyStatus;
   isThisWeek: boolean;
-  /** Session is locked from member actions — today or earlier. Pass-slot,
-   * vãng lai, claim, and admin edit are all hidden; only the history sheet
-   * stays accessible. Strictly past sessions (date < today) are filtered
-   * out of `monthSummaries.sessions` entirely. */
+  /** Session already happened (date < today) → pass-slot, vãng lai, claim and
+   * admin court-edit are hidden, only the history sheet stays. Today's session
+   * is NOT locked (B35). Past sessions are also filtered out of
+   * `monthSummaries.sessions` entirely, so in practice this is false on every
+   * rendered card — it stays as the guard for any caller that does surface a
+   * past session. */
   isLocked: boolean;
   extraRequestId: string | null;
   myVoteId: string | null;
   openPassRequests: OpenPassItem[];
   myClaimed: MyClaimedItem[];
   history: AuditEvent[];
+  /** Bodies holding a seat on this session — distinct members with a
+   * `thang` / `vang_lai` / `cho_pass` seat (same rule as `players`). A passed
+   * seat is counted once, on whoever holds it now: `da_pass` and `hoan_tien`
+   * are not seats. Drives the admin "đủ giờ sân chưa?" check when duyệt-ing
+   * vãng lai, so double counting here would mislead the admin. */
   playerCount: number;
 }
 
@@ -106,14 +112,14 @@ export async function buildHomeMonthSummary(
   const today = todayVNDateString();
   const week = thisWeekSatSun();
   const isClosed = monthRow.status === "locked" || monthRow.status === "done";
-  // Strictly past sessions (date < today) are hidden. Today's session stays
-  // visible but flagged `isLocked` so actions are disabled — only history
-  // accessible. Future sessions render normally with full actions.
+  // Strictly past sessions (date < today) are hidden. Today's session renders
+  // with full actions — pass / nhận slot / vãng lai / duyệt all stay live on
+  // the day itself (B35), because that's exactly when people drop out.
   const visible = sessionViews.filter(
     (s) => s.date >= today && (!isClosed || s.courts.length > 0),
   );
   for (const s of visible) {
-    s.isLocked = s.date <= today;
+    s.isLocked = s.date < today;
     if (s.date === week.sat || s.date === week.sun) s.isThisWeek = true;
   }
 
@@ -348,12 +354,10 @@ export function decorateHomeSession(
       : "none";
 
   const courts = bundle.allocsBySession.get(s.id) ?? [];
-  const playerCount = sv.filter((v) =>
-    v.status === "thang" ||
-    v.status === "vang_lai" ||
-    v.status === "cho_pass" ||
-    v.status === "da_pass",
-  ).length;
+  // `players` is already seat-attributed + deduped by member, so its length is
+  // the real head count. Counting raw votes would double-count a completed
+  // pass (passer keeps a `da_pass` row while the claimer gets a `thang` one).
+  const playerCount = players.length;
 
   const myVoteId =
     myVote && (myVote.status === "thang" || myVote.status === "vang_lai" || myVote.status === "cho_pass")
@@ -380,7 +384,6 @@ export function decorateHomeSession(
     id: s.id,
     date: s.date,
     weekday: s.weekday,
-    voteCount: playerCount,
     playerCount,
     courts: courts.map((c) => ({
       id: c.id,

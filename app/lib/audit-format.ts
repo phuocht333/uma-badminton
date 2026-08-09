@@ -25,7 +25,7 @@ export const kindLabel: Record<AuditKind, string> = {
   vang_lai_rejected: "Từ chối vãng lai",
   pass_rejected: "Từ chối pass slot",
   auto_matched: "Auto-match",
-  cutoff_locked: "Khoá đăng ký (cutoff)",
+  cutoff_locked: "Khoá đăng ký (cutoff — bỏ)",
   refund_issued: "Hoàn tiền",
   payment_marked: "Đánh dấu đã đóng",
   payment_unmarked: "Huỷ đánh dấu đã đóng",
@@ -53,6 +53,8 @@ export function describeEvent(e: DescribableEvent): string {
     case "pass_requested":
       return `${who} đã pass slot`;
     case "pass_cancelled":
+      // Null actor = legacy rows from the removed cutoff sweep (B34). Nothing
+      // writes these any more; kept so old history still renders.
       if (actor == null) return "Hệ thống huỷ pass slot (quá hạn cutoff)";
       return `${who} huỷ pass slot`;
     case "pass_locked":
@@ -88,6 +90,7 @@ export function describeEvent(e: DescribableEvent): string {
       }
       return `${who} đã duyệt đăng ký vãng lai của ${subject ?? "thành viên"}, ${subject ?? "thành viên"} đăng ký vãng lai thành công`;
     case "vang_lai_rejected":
+      // Null actor = legacy rows from the removed cutoff sweep (B34).
       if (actor == null) {
         return `Hệ thống từ chối vãng lai của ${subject ?? "thành viên"} (quá hạn cutoff)`;
       }
@@ -101,8 +104,9 @@ export function describeEvent(e: DescribableEvent): string {
       if (subject && claimer) return `${subject} đã pass slot cho ${claimer} thành công`;
       return `Auto-match thành công${subject ? ` (pass từ ${subject})` : ""}`;
     }
+    // Legacy kind — the cutoff was removed in B34, nothing writes this now.
     case "cutoff_locked":
-      return "Khoá đăng ký pass / vãng lai (trước buổi 24h)";
+      return "Khoá đăng ký (trước buổi 24h)";
     case "court_added": {
       const code = (e.meta?.courtCode as string) ?? "?";
       const s = (e.meta?.startTime as string) ?? "";

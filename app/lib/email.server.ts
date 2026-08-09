@@ -279,7 +279,7 @@ export async function sendAutoMatchPassSlotterEmail(
   });
 }
 
-/** Admin-approved vãng lai (after cutoff queue) → "you're in, here's QR". */
+/** Admin-approved vãng lai (from the pending queue) → "you're in, here's QR". */
 export async function sendVangLaiApprovedEmail(
   env: EmailEnv,
   member: MemberInfo,
@@ -356,40 +356,6 @@ export async function sendPassSlotRejectedEmail(
   await sendEmail(env, {
     to: member.email,
     subject: `[Uma] Pass slot không thành công — ${sessionLine(session)}`,
-    html,
-  });
-}
-
-export interface CutoffDigestSession {
-  date: string;
-  weekday: WeekdayCode;
-  pendingVangLai: number;
-  pendingPassSlot: number;
-}
-
-/** Admin digest at cutoff → "session X has N pending in queue". */
-export async function sendAdminCutoffDigestEmail(
-  env: EmailEnv,
-  admin: MemberInfo,
-  sessions: CutoffDigestSession[],
-): Promise<void> {
-  const url = `${env.APP_BASE_URL}/admin/sessions`;
-  const rows = sessions
-    .map(
-      (s) =>
-        `<li>${sessionLine({ date: s.date, weekday: s.weekday })} — ${s.pendingVangLai} vãng lai + ${s.pendingPassSlot} pass-slot cần duyệt</li>`,
-    )
-    .join("");
-  const html = wrap(
-    `${sessions.length} buổi đang chờ duyệt`,
-    `<p>Xin chào ${escape(admin.name)},</p>
-     <p>Các buổi sau vừa qua cutoff (trước buổi 24h) và còn pending trong hàng đợi:</p>
-     <ul>${rows}</ul>
-     <p style="margin:24px 0"><a href="${url}" style="display:inline-block;background:#7C3AED;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px">Vào duyệt</a></p>`,
-  );
-  await sendEmail(env, {
-    to: admin.email,
-    subject: `[Uma] ${sessions.length} buổi chờ duyệt (cutoff)`,
     html,
   });
 }

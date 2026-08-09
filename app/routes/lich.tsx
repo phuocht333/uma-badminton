@@ -45,7 +45,6 @@ import {
   freezeMonthAsBooked,
   unlockMonthForVoting,
 } from "~/lib/vote.server";
-import { sweepExpiredCutoffs } from "~/lib/cutoff-sweep.server";
 import { addCourtToSession, removeCourtFromSession } from "~/lib/court-edit.server";
 import { normalizeTimeBlur } from "~/lib/time-input";
 import { MonthMatrix, type MatrixRow, type MatrixSession } from "~/components/month-matrix";
@@ -110,13 +109,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const user = await requireUser(request, context);
   const env = getEnv(context);
   const db = getDb(env.DB);
-  // Lazy cutoff sweep — pass/vãng lai pending on sessions whose cutoff has
-  // passed get resolved here so /lich never shows stale "đang chờ" UI.
-  try {
-    await sweepExpiredCutoffs(env.DB);
-  } catch (e) {
-    console.error("[lich/loader] sweepExpiredCutoffs failed", e);
-  }
   const { year, month } = vnYearMonth(new Date());
 
   // /lich shows: current month (done/locked/voting) + every future month in

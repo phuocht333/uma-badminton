@@ -161,7 +161,7 @@
         <h3>Đăng ký vãng lai</h3>
       </div>
       <p class="item-purpose">
-        Thành viên đăng ký 1 slot vãng lai cho buổi. Server check cutoff +
+        Thành viên đăng ký 1 slot vãng lai cho buổi. Server check
         existing vote + tạo extra_slot_request + chạy tryAutoMatch.
       </p>
       <p class="copy"><b>Tiêu đề:</b> "Đăng ký vãng lai — T7 30-05-2026"</p>
@@ -222,7 +222,7 @@
         <h3>Hoàn tiền pass slot (admin)</h3>
       </div>
       <p class="item-purpose">
-        Admin duyệt hoàn tiền cho 1 pass-request unclaimed sau cutoff. Vote →
+        Admin duyệt hoàn tiền cho 1 pass-request unclaimed. Vote →
         hoan_tien, quỹ ghi nợ refund_payments.
       </p>
       <p class="copy"><b>Tiêu đề:</b> "Hoàn tiền pass slot"</p>
@@ -643,16 +643,6 @@
       <p class="item-purpose">Admin reject pass-request (vẫn tính tiền) → email báo pass-slotter.</p>
       <p class="copy"><b>Subject:</b> "[Uma] Pass slot không thành công — T7 30-05-2026"</p>
       <p class="item-source"><b>Source:</b> <code>sendPassSlotRejectedEmail</code></p>
-    </div>
-
-    <div class="item">
-      <div class="item-head">
-        <span class="tag tag-email">Email</span>
-        <h3>Digest cutoff cho admin</h3>
-      </div>
-      <p class="item-purpose">Cron daily → email admin tổng hợp các buổi đã qua cutoff cần xử lý queue.</p>
-      <p class="copy"><b>Subject:</b> "[Uma] 3 buổi chờ duyệt (cutoff)"</p>
-      <p class="item-source"><b>Source:</b> <code>sendAdminCutoffDigestEmail</code></p>
     </div>
 
     <div class="item">

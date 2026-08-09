@@ -349,21 +349,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const user = await requireUser(request, context);
   const env = getEnv(context);
 
-  // Setup mutations (idempotent): ensure months exist AND sweep cutoffs.
-  // Both run on the same D1, no interdependency.
-  await Promise.all([
-    ensureUpcomingVotingMonths(env, new Date()).catch((e) =>
-      console.error("[trang-chu/loader] ensureUpcomingVotingMonths failed", e),
-    ),
-    (async () => {
-      try {
-        const { sweepExpiredCutoffs } = await import("~/lib/cutoff-sweep.server");
-        await sweepExpiredCutoffs(env.DB);
-      } catch (e) {
-        console.error("[trang-chu/loader] sweepExpiredCutoffs failed", e);
-      }
-    })(),
-  ]);
+  // Setup mutation (idempotent): make sure the upcoming voting months exist.
+  await ensureUpcomingVotingMonths(env, new Date()).catch((e) =>
+    console.error("[trang-chu/loader] ensureUpcomingVotingMonths failed", e),
+  );
 
   const db = getDb(env.DB);
   const { year, month } = vnYearMonth(new Date());

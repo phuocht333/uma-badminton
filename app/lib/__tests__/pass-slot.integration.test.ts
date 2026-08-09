@@ -1,6 +1,6 @@
 /**
  * Integration tests for pass-slot lifecycle (Step 3 of the test plan, sections
- * 4.1–4.6).
+ * 4.1–4.6, plus 4.7 for the never-expiring states left behind by B34).
  *
  * Every test ends with `assertInvariants` to catch orphan / drift bugs as a
  * regression guard. Race tests are deliberately omitted per user direction —
@@ -18,6 +18,8 @@ import {
   rejectPassRequest,
   requestPass,
 } from "~/lib/pass-slot.server";
+import { computeMemberTotals } from "~/lib/vote.server";
+import { getPrices } from "~/lib/config.server";
 import { assertInvariants } from "./invariants";
 import {
   seedCourt,
@@ -77,17 +79,21 @@ describe("requestPass", () => {
     expect(await requestPass(s.env.d1, s.ids.userA, lockedVote)).toHaveProperty("error");
   });
 
-  it("rejects after cutoff (24h before session start)", async () => {
+  it("still allowed after cutoff — pass slot is not cutoff-gated", async () => {
     const s = await setupScenario();
-    // sessionPast is 5 days ago; any court allocation makes cutoff already passed.
+    // sessionPast is 5 days ago; any court allocation puts the cutoff behind us.
     await seedCourt(s.env, { playSessionId: s.ids.sessionPast });
     const voteId = await seedVote(s.env, {
       playSessionId: s.ids.sessionPast,
       userId: s.ids.userA,
       status: "thang",
     });
-    const r = await requestPass(s.env.d1, s.ids.userA, voteId);
-    expect(r).toMatchObject({ error: expect.stringContaining("hạn") });
+    expect(await requestPass(s.env.d1, s.ids.userA, voteId)).toMatchObject({ ok: true });
+    const vote = await s.env.db.query.votes.findFirst({
+      where: eq(schema.votes.id, voteId),
+    });
+    expect(vote?.status).toBe("cho_pass");
+    expect(await assertInvariants(s.env.db)).toEqual([]);
   });
 
   it("rejects when caller has a pending vãng lai on the same session", async () => {
@@ -256,7 +262,7 @@ describe("cancelPass", () => {
     expect(await assertInvariants(s.env.db)).toEqual([]);
   });
 
-  it("rejects after cutoff", async () => {
+  it("still allowed after cutoff — pass slot is not cutoff-gated", async () => {
     const s = await setupScenario();
     await seedCourt(s.env, { playSessionId: s.ids.sessionPast });
     const voteId = await seedVote(s.env, {
@@ -265,8 +271,12 @@ describe("cancelPass", () => {
       status: "cho_pass",
     });
     await seedPassRequest(s.env, { voteId, originalVoteStatus: "thang" });
-    const r = await cancelPass(s.env.d1, s.ids.userA, voteId);
-    expect(r).toMatchObject({ error: expect.stringContaining("hạn") });
+    expect(await cancelPass(s.env.d1, s.ids.userA, voteId)).toMatchObject({ ok: true });
+    const vote = await s.env.db.query.votes.findFirst({
+      where: eq(schema.votes.id, voteId),
+    });
+    expect(vote?.status).toBe("thang");
+    expect(await assertInvariants(s.env.db)).toEqual([]);
   });
 
   it("orphan cleanup: vote=vang_lai but pass_request open → deletes row, keeps vote vang_lai", async () => {
@@ -414,7 +424,7 @@ describe("claimAndConfirm", () => {
     expect(r).toHaveProperty("error");
   });
 
-  it("rejects after cutoff", async () => {
+  it("still allowed after cutoff — pass slot is not cutoff-gated", async () => {
     const s = await setupScenario();
     await seedCourt(s.env, { playSessionId: s.ids.sessionPast });
     const aVote = await seedVote(s.env, {
@@ -426,8 +436,12 @@ describe("claimAndConfirm", () => {
       voteId: aVote,
       originalVoteStatus: "thang",
     });
-    const r = await claimAndConfirm(s.env.d1, s.ids.userB, prId);
-    expect(r).toMatchObject({ error: expect.stringContaining("hạn") });
+    expect(await claimAndConfirm(s.env.d1, s.ids.userB, prId)).toMatchObject({ ok: true });
+    const aAfter = await s.env.db.query.votes.findFirst({
+      where: eq(schema.votes.id, aVote),
+    });
+    expect(aAfter?.status).toBe("da_pass");
+    expect(await assertInvariants(s.env.db)).toEqual([]);
   });
 
   it("rejects when pass_request is already rejected by admin", async () => {
@@ -757,6 +771,87 @@ describe("rejectPassRequest", () => {
       where: eq(schema.auditLogs.kind, "pass_rejected"),
     });
     expect(auditRow?.actorUserId).toBe(s.ids.userAdmin);
+    expect(await assertInvariants(s.env.db)).toEqual([]);
+  });
+});
+
+/* ============================================================
+ * 4.7 Unclaimed pass on a session that already happened (B34)
+ *
+ * Nothing expires: the vote keeps its `cho_pass` status forever and the
+ * passer stays on the bill at the thang rate until an admin acts. These
+ * tests pin that down — they're the reason it's safe to have no cutoff.
+ * ============================================================ */
+
+describe("unclaimed pass slot never expires (B34)", () => {
+  it("keeps cho_pass + stays on the bill at thang rate after the session passed", async () => {
+    const s = await setupScenario();
+    // Session was 5 days ago and has a court, so it's visible in the bill.
+    await seedCourt(s.env, { playSessionId: s.ids.sessionPast });
+    const voteId = await seedVote(s.env, {
+      playSessionId: s.ids.sessionPast,
+      userId: s.ids.userA,
+      status: "thang",
+    });
+    expect(await requestPass(s.env.d1, s.ids.userA, voteId)).toMatchObject({ ok: true });
+
+    // No claimer ever shows up — status stays put, pass_request stays open.
+    const vote = await s.env.db.query.votes.findFirst({ where: eq(schema.votes.id, voteId) });
+    expect(vote?.status).toBe("cho_pass");
+    const pr = await s.env.db.query.passRequests.findFirst({
+      where: eq(schema.passRequests.voteId, voteId),
+    });
+    expect(pr?.claimedAt).toBeNull();
+    expect(pr?.rejectedAt).toBeNull();
+    expect(pr?.confirmedAt).toBeNull();
+
+    // Money check: A is still billed the monthly (thang) rate for the seat.
+    const prices = await getPrices(s.env.d1);
+    const totals = await computeMemberTotals(s.env.d1, 2000, 1);
+    expect(totals.get(s.ids.userA)).toMatchObject({
+      totalSlots: 1,
+      totalFee: prices.thang.nam,
+    });
+    expect(await assertInvariants(s.env.db)).toEqual([]);
+  });
+
+  it("admin duyệt hoàn tiền → hoan_tien, off the bill", async () => {
+    const s = await setupScenario();
+    await seedCourt(s.env, { playSessionId: s.ids.sessionPast });
+    const voteId = await seedVote(s.env, {
+      playSessionId: s.ids.sessionPast,
+      userId: s.ids.userA,
+      status: "cho_pass",
+    });
+    const prId = await seedPassRequest(s.env, { voteId, originalVoteStatus: "thang" });
+
+    expect(await approvePassRefund(s.env.d1, prId, s.ids.userAdmin)).toMatchObject({
+      ok: true,
+      userId: s.ids.userA,
+    });
+    const vote = await s.env.db.query.votes.findFirst({ where: eq(schema.votes.id, voteId) });
+    expect(vote?.status).toBe("hoan_tien");
+    const totals = await computeMemberTotals(s.env.d1, 2000, 1);
+    expect(totals.get(s.ids.userA)).toBeUndefined();
+    expect(await assertInvariants(s.env.db)).toEqual([]);
+  });
+
+  it("admin từ chối → back to originalVoteStatus, still on the bill", async () => {
+    const s = await setupScenario();
+    await seedCourt(s.env, { playSessionId: s.ids.sessionPast });
+    const voteId = await seedVote(s.env, {
+      playSessionId: s.ids.sessionPast,
+      userId: s.ids.userA,
+      status: "cho_pass",
+    });
+    const prId = await seedPassRequest(s.env, { voteId, originalVoteStatus: "thang" });
+
+    expect(await rejectPassRequest(s.env.d1, prId, s.ids.userAdmin)).toMatchObject({ ok: true });
+    const vote = await s.env.db.query.votes.findFirst({ where: eq(schema.votes.id, voteId) });
+    expect(vote?.status).toBe("thang");
+    const prices = await getPrices(s.env.d1);
+    const totals = await computeMemberTotals(s.env.d1, 2000, 1);
+    expect(totals.get(s.ids.userA)).toMatchObject({ totalFee: prices.thang.nam });
     expect(await assertInvariants(s.env.db)).toEqual([]);
   });
 });

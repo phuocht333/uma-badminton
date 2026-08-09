@@ -4,10 +4,10 @@
  * sessions (3 future + 1 past).
  *
  * Date handling: real `Date.now()` for `now`, session dates computed relative
- * to it. Cutoff-24h: `sessionPast` is far enough in the past that any court
- * allocation on it puts the cutoff behind us; `sessionDone` is far enough in
- * the future that cutoff hasn't arrived yet. No `Date.now()` mocking — tests
- * exercise the real `isAfterCutoff` implementation.
+ * to it. `sessionPast` is 5 days in the past and `sessionDone` 30 days in the
+ * future — used to prove that pass-slot / vãng lai / auto-match no longer care
+ * how close the session is (the 24h cutoff was removed in B34). No `Date.now()`
+ * mocking anywhere.
  */
 import { ulid } from "ulid";
 import * as schema from "~/db/schema";
@@ -46,13 +46,11 @@ function dateInDays(now: number, days: number): string {
 /**
  * Build a baseline scenario.
  *
- * Sessions and their cutoff-test affordances:
+ * Sessions:
  *   - `sessionVoting` (in `monthVoting`)  — month status "voting", no courts
  *   - `sessionLocked` (in `monthLocked`)  — month status "locked", no courts
- *   - `sessionDone`   (in `monthDone`)    — month "done", far future, no courts
- *                                           seedCourt to enable cutoff math
- *   - `sessionPast`   (in `monthDonePast`)— month "done", far past, no courts
- *                                           seedCourt → isAfterCutoff returns true
+ *   - `sessionDone`   (in `monthDone`)    — month "done", 30 days out, no courts
+ *   - `sessionPast`   (in `monthDonePast`)— month "done", 5 days ago, no courts
  */
 export async function setupScenario(): Promise<Scenario> {
   const env = createTestEnv();

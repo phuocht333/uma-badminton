@@ -199,7 +199,7 @@ async function loadIncomingPassSlots(
   const db = getDb(d1);
   // Pass requests across the whole system in the "claimed but not yet
   // confirmed" window. This list is bounded (only auto-match leaves it
-  // populated, only between match and confirm/cutoff) so it's cheaper than
+  // populated, only between match and the claimer's confirm) so it's cheaper than
   // fetching all of my votes first.
   const awaiting = await db.query.passRequests.findMany({
     where: and(

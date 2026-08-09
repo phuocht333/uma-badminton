@@ -44,7 +44,7 @@ describe("tryAutoMatch", () => {
     expect(await tryAutoMatch(s.env.d1, s.ids.sessionDone)).toBeNull();
   });
 
-  it("returns null after cutoff", async () => {
+  it("still matches after cutoff — auto-match is not cutoff-gated", async () => {
     const s = await setupScenario();
     await seedCourt(s.env, { playSessionId: s.ids.sessionPast });
     const aVote = await seedVote(s.env, {
@@ -57,7 +57,9 @@ describe("tryAutoMatch", () => {
       userId: s.ids.userB,
       playSessionId: s.ids.sessionPast,
     });
-    expect(await tryAutoMatch(s.env.d1, s.ids.sessionPast)).toBeNull();
+    const m = await tryAutoMatch(s.env.d1, s.ids.sessionPast);
+    expect(m).toMatchObject({ vangLaiUserId: s.ids.userB, playSessionId: s.ids.sessionPast });
+    expect(await assertInvariants(s.env.db)).toEqual([]);
   });
 
   it("happy match: pass-slot + vãng lai → seat transfer + extra approved (NULL admin) + audit", async () => {

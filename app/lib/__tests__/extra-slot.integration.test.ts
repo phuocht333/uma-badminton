@@ -49,11 +49,13 @@ describe("registerVangLai", () => {
     expect(r).toMatchObject({ error: expect.stringContaining("Đã đặt sân") });
   });
 
-  it("rejects after cutoff", async () => {
+  it("still allowed after cutoff — vãng lai is not cutoff-gated", async () => {
     const s = await setupScenario();
     await seedCourt(s.env, { playSessionId: s.ids.sessionPast });
-    const r = await registerVangLai(s.env.d1, s.ids.userA, s.ids.sessionPast);
-    expect(r).toMatchObject({ error: expect.stringContaining("hạn") });
+    expect(await registerVangLai(s.env.d1, s.ids.userA, s.ids.sessionPast)).toMatchObject({
+      ok: true,
+    });
+    expect(await assertInvariants(s.env.db)).toEqual([]);
   });
 
   it("rejects when user already has thang vote on the session", async () => {
@@ -287,14 +289,18 @@ describe("cancelExtraSlotRequest", () => {
     expect(await cancelExtraSlotRequest(s.env.d1, s.ids.userB, extraRejected)).toBe(false);
   });
 
-  it("returns false after cutoff (admin owns queue post-cutoff)", async () => {
+  it("still allowed after cutoff — member keeps control of their own request", async () => {
     const s = await setupScenario();
     await seedCourt(s.env, { playSessionId: s.ids.sessionPast });
     const extraId = await seedExtraSlot(s.env, {
       userId: s.ids.userA,
       playSessionId: s.ids.sessionPast,
     });
-    expect(await cancelExtraSlotRequest(s.env.d1, s.ids.userA, extraId)).toBe(false);
+    expect(await cancelExtraSlotRequest(s.env.d1, s.ids.userA, extraId)).toBe(true);
+    const row = await s.env.db.query.extraSlotRequests.findFirst({
+      where: eq(schema.extraSlotRequests.id, extraId),
+    });
+    expect(row?.cancelledAt).toBeTruthy();
   });
 
   it("happy path: stamps cancelledAt + audits", async () => {
@@ -696,5 +702,81 @@ describe("refundPendingPassRequests", () => {
       s.ids.userAdmin,
     );
     expect(n).toBe(0);
+  });
+});
+
+/* ============================================================
+ * Pending vãng lai on a session that already happened (B34)
+ *
+ * Nothing expires it: the request stays pending, creates no vote (so no
+ * bill), and both the member and the admin can still act on it.
+ * ============================================================ */
+
+describe("pending vãng lai never expires (B34)", () => {
+  it("stays pending with no vote created after the session passed", async () => {
+    const s = await setupScenario();
+    await seedCourt(s.env, { playSessionId: s.ids.sessionPast });
+    expect(await registerVangLai(s.env.d1, s.ids.userA, s.ids.sessionPast)).toMatchObject({
+      ok: true,
+    });
+
+    const row = await s.env.db.query.extraSlotRequests.findFirst({
+      where: eq(schema.extraSlotRequests.userId, s.ids.userA),
+    });
+    expect(row?.approvedAt).toBeNull();
+    expect(row?.rejectedAt).toBeNull();
+    expect(row?.cancelledAt).toBeNull();
+    // No vote → nothing on the bill until an admin duyệt.
+    const vote = await s.env.db.query.votes.findFirst({
+      where: and(
+        eq(schema.votes.userId, s.ids.userA),
+        eq(schema.votes.playSessionId, s.ids.sessionPast),
+      ),
+    });
+    expect(vote).toBeUndefined();
+    expect(await assertInvariants(s.env.db)).toEqual([]);
+  });
+
+  it("admin can still duyệt it after the session passed → vang_lai vote", async () => {
+    const s = await setupScenario();
+    await seedCourt(s.env, { playSessionId: s.ids.sessionPast });
+    const extraId = await seedExtraSlot(s.env, {
+      userId: s.ids.userA,
+      playSessionId: s.ids.sessionPast,
+    });
+    expect(await approveSingleRequest(s.env.d1, extraId, s.ids.userAdmin)).toBeTruthy();
+    const vote = await s.env.db.query.votes.findFirst({
+      where: and(
+        eq(schema.votes.userId, s.ids.userA),
+        eq(schema.votes.playSessionId, s.ids.sessionPast),
+      ),
+    });
+    expect(vote?.status).toBe("vang_lai");
+    expect(await assertInvariants(s.env.db)).toEqual([]);
+  });
+
+  it("admin can still từ chối it after the session passed → no vote", async () => {
+    const s = await setupScenario();
+    await seedCourt(s.env, { playSessionId: s.ids.sessionPast });
+    const extraId = await seedExtraSlot(s.env, {
+      userId: s.ids.userA,
+      playSessionId: s.ids.sessionPast,
+    });
+    expect(
+      await rejectSingleExtraSlotRequest(s.env.d1, extraId, s.ids.userAdmin),
+    ).toBeTruthy();
+    const row = await s.env.db.query.extraSlotRequests.findFirst({
+      where: eq(schema.extraSlotRequests.id, extraId),
+    });
+    expect(row?.rejectedAt).toBeTruthy();
+    expect(row?.rejectedByUserId).toBe(s.ids.userAdmin);
+    const vote = await s.env.db.query.votes.findFirst({
+      where: and(
+        eq(schema.votes.userId, s.ids.userA),
+        eq(schema.votes.playSessionId, s.ids.sessionPast),
+      ),
+    });
+    expect(vote).toBeUndefined();
+    expect(await assertInvariants(s.env.db)).toEqual([]);
   });
 });

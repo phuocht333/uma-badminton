@@ -22,7 +22,6 @@ import { getDb, schema } from "~/db/client";
 import { audit } from "./audit.server";
 import { getPrices, type PriceTable } from "./config.server";
 import { transferSeatToClaimer } from "./seat-transfer.server";
-import { isAfterCutoff } from "./session-cutoff.server";
 
 export interface AutoMatchPayment {
   /** Amount vãng lai transfers to the pass-slotter. */
@@ -75,7 +74,7 @@ export interface AutoMatchResult {
 
 /**
  * Try to match one pass-slot ↔ one vãng lai on the given session. Returns the
- * matched pair (or null if either pool is empty / cutoff passed). Caller is
+ * matched pair (or null if either pool is empty). Caller is
  * responsible for sending emails after this returns — keeps the DB write
  * fast.
  */
@@ -84,7 +83,6 @@ export async function tryAutoMatch(
   playSessionId: string,
   now: number = Date.now(),
 ): Promise<AutoMatchResult | null> {
-  if (await isAfterCutoff(d1, playSessionId, now)) return null;
   const db = getDb(d1);
 
   // Oldest pending vãng lai on this session — we anchor on this so the
@@ -129,8 +127,8 @@ export async function tryAutoMatch(
 
   // Atomic claim: only the first writer wins if two events race. Note that
   // we set `claimedAt` only — `confirmedAt` stays null so the claimer's
-  // homepage payment banner appears until they click "Đã thanh toán". The
-  // cutoff sweep auto-confirms any still-pending entries at the 24h mark.
+  // homepage payment banner appears until they click "Đã thanh toán". Nothing
+  // ever auto-confirms it — the banner is the reminder.
   const claimed = await db
     .update(schema.passRequests)
     .set({

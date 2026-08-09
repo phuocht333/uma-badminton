@@ -39,7 +39,8 @@ This repo sits inside the Vietnamese Solo Product Workshop (`/Users/phuochuynh/D
 | Pass-slot state machine | `app/lib/pass-slot.server.ts` (only home for state transitions; preconditions centralised in `assert*` helpers) |
 | Vãng lai flow (admin-gated) | `app/lib/extra-slot.server.ts` |
 | Empty-court hiding for locked months | `app/lib/sessions.ts/visibleSessions` |
-| Capacity formula (gates vãng lai) | `app/lib/extra-slot.server.ts/computeCapacity` (pure) |
+| Hours-needed formula (head count → giờ sân) | `app/lib/allocate-courts.ts/calculateTotalHours` (pure) |
+| Session head count (seats, deduped) | `app/lib/home-summary.server.ts` → `SessionView.playerCount` |
 | Matrix builder (used by /lich + /admin) | `app/lib/month-matrix.server.ts` |
 | Trang-chu loader logic | `app/lib/home-summary.server.ts` |
 | Pass-request join helper | `app/lib/pass-request-enrich.server.ts` |

@@ -70,7 +70,7 @@ describe("describeEvent", () => {
     ).toBe("Hệ thống tự duyệt vãng lai cho Nhung (đủ chỗ)");
   });
 
-  it("vang_lai_rejected null actor → cutoff sweep", () => {
+  it("vang_lai_rejected null actor → legacy cutoff-sweep row", () => {
     expect(
       describeEvent({
         kind: "vang_lai_rejected",

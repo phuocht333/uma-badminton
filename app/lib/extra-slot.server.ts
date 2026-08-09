@@ -6,9 +6,12 @@
  *     Older requests refunded first (FIFO).
  *
  *  2. "Vãng lai request" — when there's no slot available to claim, a member
- *     can request to be added as vãng lai for a specific session. Admin
- *     fulfils by adding an extra court — that auto-approves all pending
- *     requests for the session and inserts vang_lai votes.
+ *     can request to be added as vãng lai for a specific session. The request
+ *     waits until either a pass-slot auto-matches to it, or an admin duyệt-s
+ *     it (per-person via `approveSingleRequest`, or the whole session via
+ *     `approvePendingForSession` behind the "Duyệt tất cả" button). Adding a
+ *     court does NOT auto-approve anything on its own — B28 split "đặt sân"
+ *     from "duyệt người".
  */
 
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
@@ -16,7 +19,6 @@ import { ulid } from "ulid";
 import { getDb, schema } from "~/db/client";
 import { audit } from "./audit.server";
 import { tryAutoMatch, type AutoMatchResult } from "./auto-match.server";
-import { isAfterCutoff } from "./session-cutoff.server";
 
 /**
  * Convert oldest-first `cho_pass` votes for a session into `hoan_tien` (refund).
@@ -75,31 +77,18 @@ export async function refundPendingPassRequests(
 }
 
 /**
- * Member creates a vãng lai request. Caller validates session is locked.
- * Returns the new request id, or throws if member already has a vote or
- * pending request for this session.
- */
-/**
- * Vãng lai registration — runs only after a month is "Đã đặt sân" (DB `done`).
- * Two branches:
+ * Vãng lai registration — only after a month is "Đã đặt sân" (DB `done`).
  *
- *   - **Auto-instant (capacity available)**: if `playerCount < capacity`, the
- *     member is admitted immediately — a `vang_lai` vote is written, no
- *     extra_slot_request row needed, audit `vang_lai_approved`. The member's
- *     payment is handled outside the system (QR shown in the home banner).
+ * One path, always: upsert a single `extra_slot_requests` row (unique on
+ * user_id + play_session_id, reusing a previously cancelled / rejected row)
+ * then run one `tryAutoMatch` pass. If a pass-slot is open on the session the
+ * seat moves to this member atomically; otherwise they wait in line until
+ * someone passes or an admin duyệt-s them. There is **no** capacity-based
+ * auto-admit — admin owns the queue (B28).
  *
- *   - **Queue + auto-match (full)**: capacity is full → an
- *     extra_slot_request row is created and `tryAutoMatch` is invoked. If a
- *     pass-slot is open the seat moves to this member atomically; otherwise
- *     they wait in line.
- *
- * Cutoff-24h blocks both branches.
- */
-/**
- * Member registers 1 vãng lai slot for a session. Upserts a single row in
- * `extra_slot_requests` (uniqueness enforced on user_id + play_session_id) —
- * resetting cancelled / rejected state if the row existed. Triggers one
- * `tryAutoMatch` attempt; caller surfaces the auto-match result via toast.
+ * No registration deadline (B34): registering stays open right up to the
+ * session, and whatever is still queued is the admin's call (duyệt / từ chối on
+ * the session page). Caller surfaces the auto-match result via toast.
  */
 export async function registerVangLai(
   d1: D1Database,
@@ -118,10 +107,6 @@ export async function registerVangLai(
   if (month?.status !== "done") {
     return { error: "Đăng ký vãng lai chỉ thực hiện được sau khi lịch 'Đã đặt sân'." };
   }
-  if (await isAfterCutoff(d1, playSessionId)) {
-    return { error: "Đã qua hạn đăng ký vãng lai (trước buổi 24h). Liên hệ Admin." };
-  }
-
   // Already an attending seat → no need to request.
   const existingVote = await db.query.votes.findFirst({
     where: and(eq(schema.votes.userId, userId), eq(schema.votes.playSessionId, playSessionId)),
@@ -177,8 +162,6 @@ export async function cancelExtraSlotRequest(
   });
   if (!row || row.userId !== userId) return false;
   if (row.approvedAt || row.cancelledAt || row.rejectedAt) return false;
-  // After cutoff, admin owns the queue — user can't unilaterally pull out.
-  if (await isAfterCutoff(d1, row.playSessionId)) return false;
   await db
     .update(schema.extraSlotRequests)
     .set({ cancelledAt: Date.now() })
